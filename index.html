@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사다리 게임</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 2.2rem;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #e94560, #ffd700);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+  }
+  .subtitle {
+    color: #888;
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+  .settings {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: rgba(255,255,255,0.05);
+    padding: 14px 24px;
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+  }
+  .settings label { font-size: 0.95rem; }
+  .settings input[type="number"] {
+    width: 55px;
+    padding: 6px 8px;
+    border: 2px solid #444;
+    border-radius: 8px;
+    background: #16213e;
+    color: #eee;
+    text-align: center;
+    font-size: 1rem;
+  }
+  .settings input[type="number"]:focus {
+    outline: none;
+    border-color: #e94560;
+  }
+  button {
+    padding: 9px 22px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+    font-weight: 600;
+  }
+  button:active { transform: scale(0.95); }
+  .btn-primary {
+    background: linear-gradient(135deg, #e94560, #c73652);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(233,69,96,0.3);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #ff5a7a, #e94560);
+    box-shadow: 0 4px 20px rgba(233,69,96,0.5);
+  }
+  .btn-secondary {
+    background: linear-gradient(135deg, #0f3460, #1a4a7a);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(15,52,96,0.3);
+  }
+  .btn-secondary:hover {
+    background: linear-gradient(135deg, #1a4a7a, #2a5a9a);
+  }
+  .btn-reset {
+    background: linear-gradient(135deg, #533483, #7c3aed);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(83,52,131,0.3);
+  }
+  .btn-reset:hover {
+    background: linear-gradient(135deg, #7c3aed, #9333ea);
+  }
+
+  .name-section {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .name-group {
+    background: rgba(255,255,255,0.05);
+    padding: 12px 16px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+  }
+  .name-group-title {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .name-inputs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .name-inputs input {
+    width: 88px;
+    padding: 7px 8px;
+    border: 2px solid #333;
+    border-radius: 8px;
+    background: #16213e;
+    color: #eee;
+    text-align: center;
+    font-size: 0.85rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .name-inputs input:focus {
+    outline: none;
+    border-color: #e94560;
+    box-shadow: 0 0 10px rgba(233,69,96,0.2);
+  }
+  .name-inputs input.result-input:focus {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(255,215,0,0.2);
+  }
+
+  .game-area {
+    position: relative;
+    margin: 10px auto;
+  }
+  canvas {
+    display: block;
+    border-radius: 14px;
+    background: rgba(22,33,62,0.8);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .top-labels, .bottom-labels {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    padding: 0 40px;
+  }
+  .top-labels span, .bottom-labels span {
+    width: 82px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    padding: 8px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.25s;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .top-labels span {
+    background: linear-gradient(135deg, #0f3460, #1a4a7a);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(15,52,96,0.3);
+  }
+  .top-labels span:hover {
+    background: linear-gradient(135deg, #e94560, #ff5a7a);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(233,69,96,0.4);
+  }
+  .bottom-labels span {
+    background: linear-gradient(135deg, #533483, #7c3aed);
+    color: #fff;
+    cursor: default;
+    box-shadow: 0 3px 10px rgba(83,52,131,0.3);
+    font-size: 0.85rem;
+  }
+  .result-banner {
+    margin-top: 18px;
+    font-size: 1.4rem;
+    font-weight: bold;
+    min-height: 35px;
+    text-align: center;
+    transition: opacity 0.3s;
+  }
+  .result-banner.show {
+    animation: popIn 0.4s ease-out;
+  }
+  @keyframes popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .highlight-start {
+    background: linear-gradient(135deg, #e94560, #ff5a7a) !important;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(233,69,96,0.4) !important;
+  }
+  .highlight-end {
+    background: linear-gradient(135deg, #e94560, #ff5a7a) !important;
+    box-shadow: 0 6px 20px rgba(233,69,96,0.4) !important;
+    animation: popIn 0.3s ease-out;
+  }
+
+  .history {
+    margin-top: 20px;
+    width: 100%;
+    max-width: 500px;
+  }
+  .history-title {
+    font-size: 0.9rem;
+    color: #888;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .history-item {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    animation: slideIn 0.3s ease-out;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .history-item .name { color: #e94560; font-weight: 600; }
+  .history-item .arrow { color: #666; }
+  .history-item .result { color: #ffd700; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>사다리 게임</h1>
+<p class="subtitle">참가자 이름을 클릭하면 사다리를 타고 내려갑니다</p>
+
+<div class="settings">
+  <label>참가자 수: <input id="numPlayers" type="number" min="2" max="10" value="4"></label>
+  <button class="btn-primary" onclick="initGame()">게임 생성</button>
+  <button class="btn-secondary" onclick="revealAll()">전체 공개</button>
+  <button class="btn-reset" onclick="resetResults()">초기화</button>
+</div>
+
+<div class="name-section">
+  <div class="name-group">
+    <div class="name-group-title">참가자 이름</div>
+    <div id="playerNames" class="name-inputs"></div>
+  </div>
+  <div class="name-group">
+    <div class="name-group-title">결과 (당첨/벌칙 등)</div>
+    <div id="resultNames" class="name-inputs"></div>
+  </div>
+</div>
+
+<div class="game-area">
+  <div id="topLabels" class="top-labels"></div>
+  <canvas id="canvas"></canvas>
+  <div id="bottomLabels" class="bottom-labels"></div>
+</div>
+
+<div id="resultBanner" class="result-banner"></div>
+
+<div class="history" id="historySection" style="display:none;">
+  <div class="history-title">결과 기록</div>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<script>
+const COLORS = ['#e94560','#00b894','#ffd700','#6c5ce7','#fd79a8','#00cec9','#ff7675','#a29bfe','#fab1a0','#81ecec'];
+
+let numPlayers = 4;
+let ladderData = [];
+let canvasW, canvasH;
+let colGap, rowGap;
+const ROWS = 12;
+const PAD_X = 60;
+const PAD_Y = 25;
+const CANVAS_H = 450;
+let animating = false;
+let drawnPaths = [];
+let history = [];
+
+function initGame() {
+  numPlayers = Math.max(2, Math.min(10, parseInt(document.getElementById('numPlayers').value) || 4));
+  document.getElementById('numPlayers').value = numPlayers;
+  document.getElementById('resultBanner').textContent = '';
+  document.getElementById('resultBanner').className = 'result-banner';
+  animating = false;
+  drawnPaths = [];
+  history = [];
+  document.getElementById('historyList').innerHTML = '';
+  document.getElementById('historySection').style.display = 'none';
+
+  const pDiv = document.getElementById('playerNames');
+  const rDiv = document.getElementById('resultNames');
+  pDiv.innerHTML = '';
+  rDiv.innerHTML = '';
+
+  for (let i = 0; i < numPlayers; i++) {
+    const pi = document.createElement('input');
+    pi.placeholder = `참가자${i+1}`;
+    pi.id = `p${i}`;
+    pi.value = `참가자${i+1}`;
+    pi.oninput = () => updateTopLabel(i);
+    pDiv.appendChild(pi);
+
+    const ri = document.createElement('input');
+    ri.placeholder = `결과${i+1}`;
+    ri.id = `r${i}`;
+    ri.className = 'result-input';
+    if (i === 0) ri.value = '당첨!';
+    rDiv.appendChild(ri);
+  }
+
+  generateLadder();
+  drawLadder();
+  buildLabels();
+}
+
+function updateTopLabel(idx) {
+  const spans = document.querySelectorAll('#topLabels span');
+  if (spans[idx]) {
+    spans[idx].textContent = document.getElementById(`p${idx}`).value || `참가자${idx+1}`;
+  }
+}
+
+function generateLadder() {
+  ladderData = [];
+  for (let c = 0; c < numPlayers - 1; c++) {
+    ladderData[c] = [];
+    for (let r = 0; r < ROWS; r++) {
+      ladderData[c][r] = Math.random() < 0.35;
+    }
+  }
+  // No two adjacent horizontal bridges on the same row
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 1; c < numPlayers - 1; c++) {
+      if (ladderData[c][r] && ladderData[c-1][r]) {
+        ladderData[c][r] = false;
+      }
+    }
+  }
+  // Ensure at least some bridges per column
+  for (let c = 0; c < numPlayers - 1; c++) {
+    const has = ladderData[c].some(v => v);
+    if (!has) {
+      ladderData[c][Math.floor(Math.random() * ROWS)] = true;
+    }
+  }
+}
+
+function getMetrics() {
+  canvasW = PAD_X * 2 + (numPlayers - 1) * 100;
+  canvasH = CANVAS_H;
+  colGap = (canvasW - PAD_X * 2) / (numPlayers - 1);
+  rowGap = (canvasH - PAD_Y * 2) / (ROWS + 1);
+}
+
+function colX(c) { return PAD_X + c * colGap; }
+function rowY(r) { return PAD_Y + (r + 1) * rowGap; }
+
+function drawLadder(highlights) {
+  if (!highlights) highlights = drawnPaths;
+  getMetrics();
+  const canvas = document.getElementById('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvasW, canvasH);
+
+  // Vertical lines
+  for (let c = 0; c < numPlayers; c++) {
+    ctx.strokeStyle = 'rgba(100,100,140,0.4)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(colX(c), PAD_Y);
+    ctx.lineTo(colX(c), canvasH - PAD_Y);
+    ctx.stroke();
+
+    // Small circles at top and bottom
+    ctx.fillStyle = 'rgba(100,100,140,0.6)';
+    ctx.beginPath();
+    ctx.arc(colX(c), PAD_Y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(colX(c), canvasH - PAD_Y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Horizontal bridges
+  for (let c = 0; c < numPlayers - 1; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (ladderData[c][r]) {
+        ctx.strokeStyle = 'rgba(100,100,140,0.5)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(colX(c), rowY(r));
+        ctx.lineTo(colX(c + 1), rowY(r));
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Draw highlight paths
+  for (const h of highlights) {
+    ctx.strokeStyle = h.color;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([]);
+    ctx.shadowColor = h.color;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    const pts = h.points;
+    if (pts.length > 0) {
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i][0], pts[i][1]);
+      }
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Draw dot at the current position
+    if (pts.length > 0) {
+      const last = pts[pts.length - 1];
+      ctx.fillStyle = h.color;
+      ctx.shadowColor = h.color;
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(last[0], last[1], 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+}
+
+function tracePath(startCol) {
+  const points = [];
+  let col = startCol;
+  points.push([colX(col), PAD_Y]);
+
+  for (let r = 0; r < ROWS; r++) {
+    points.push([colX(col), rowY(r)]);
+    if (col < numPlayers - 1 && ladderData[col][r]) {
+      col++;
+      points.push([colX(col), rowY(r)]);
+    } else if (col > 0 && ladderData[col - 1][r]) {
+      col--;
+      points.push([colX(col), rowY(r)]);
+    }
+  }
+  points.push([colX(col), canvasH - PAD_Y]);
+  return { points, endCol: col };
+}
+
+function buildLabels() {
+  const topDiv = document.getElementById('topLabels');
+  const botDiv = document.getElementById('bottomLabels');
+  topDiv.innerHTML = '';
+  botDiv.innerHTML = '';
+  topDiv.style.width = canvasW + 'px';
+  botDiv.style.width = canvasW + 'px';
+  topDiv.style.padding = `0 ${PAD_X - 40}px`;
+  botDiv.style.padding = `0 ${PAD_X - 40}px`;
+
+  for (let i = 0; i < numPlayers; i++) {
+    const ts = document.createElement('span');
+    ts.textContent = document.getElementById(`p${i}`).value || `참가자${i+1}`;
+    ts.onclick = () => animateTrace(i);
+    topDiv.appendChild(ts);
+
+    const bs = document.createElement('span');
+    bs.textContent = '?';
+    bs.id = `bot${i}`;
+    botDiv.appendChild(bs);
+  }
+}
+
+function animateTrace(startCol) {
+  if (animating) return;
+  animating = true;
+  document.getElementById('resultBanner').textContent = '';
+  document.getElementById('resultBanner').className = 'result-banner';
+
+  const tops = document.querySelectorAll('#topLabels span');
+  tops[startCol].classList.add('highlight-start');
+
+  const color = COLORS[startCol % COLORS.length];
+  const { points, endCol } = tracePath(startCol);
+
+  let idx = 1;
+  const partialPoints = [points[0]];
+  const speed = 2; // points per frame
+
+  function step() {
+    if (idx >= points.length) {
+      // Done - finalize
+      const pathData = { color, points: [...partialPoints] };
+      drawnPaths.push(pathData);
+
+      const resultText = document.getElementById(`r${endCol}`).value;
+      const bs = document.getElementById(`bot${endCol}`);
+      bs.textContent = resultText || `결과${endCol+1}`;
+      bs.classList.add('highlight-end');
+
+      const pName = document.getElementById(`p${startCol}`).value || `참가자${startCol+1}`;
+      const rText = resultText || `결과${endCol+1}`;
+      const banner = document.getElementById('resultBanner');
+      banner.innerHTML = `<span style="color:${color}">${pName}</span> <span style="color:#666">&#10132;</span> <span style="color:#ffd700">${rText}</span>`;
+      banner.className = 'result-banner show';
+
+      addHistory(pName, rText, color);
+      animating = false;
+      return;
+    }
+
+    for (let s = 0; s < speed && idx < points.length; s++, idx++) {
+      partialPoints.push(points[idx]);
+    }
+
+    const allHighlights = [...drawnPaths, { color, points: [...partialPoints] }];
+    drawLadder(allHighlights);
+    requestAnimationFrame(step);
+  }
+  step();
+}
+
+function revealAll() {
+  if (animating) return;
+  animating = true;
+  document.getElementById('resultBanner').textContent = '';
+  document.getElementById('resultBanner').className = 'result-banner';
+  drawnPaths = [];
+
+  const allPaths = [];
+  for (let i = 0; i < numPlayers; i++) {
+    const { points, endCol } = tracePath(i);
+    allPaths.push({ color: COLORS[i % COLORS.length], points, endCol, startCol: i });
+  }
+
+  let idx = 1;
+  const maxLen = Math.max(...allPaths.map(p => p.points.length));
+
+  function step() {
+    if (idx >= maxLen) {
+      for (const p of allPaths) {
+        const bs = document.getElementById(`bot${p.endCol}`);
+        const resultText = document.getElementById(`r${p.endCol}`).value;
+        bs.textContent = resultText || `결과${p.endCol+1}`;
+        bs.classList.add('highlight-end');
+
+        const pName = document.getElementById(`p${p.startCol}`).value || `참가자${p.startCol+1}`;
+        addHistory(pName, resultText || `결과${p.endCol+1}`, p.color);
+      }
+      drawnPaths = allPaths.map(p => ({ color: p.color, points: p.points }));
+      animating = false;
+      return;
+    }
+
+    const highlights = allPaths.map(p => ({
+      color: p.color,
+      points: p.points.slice(0, Math.min(idx + 1, p.points.length))
+    }));
+    drawLadder(highlights);
+    idx += 2;
+    requestAnimationFrame(step);
+  }
+  step();
+}
+
+function resetResults() {
+  if (animating) return;
+  drawnPaths = [];
+  history = [];
+  document.getElementById('historyList').innerHTML = '';
+  document.getElementById('historySection').style.display = 'none';
+  document.getElementById('resultBanner').textContent = '';
+  document.getElementById('resultBanner').className = 'result-banner';
+
+  const tops = document.querySelectorAll('#topLabels span');
+  const bots = document.querySelectorAll('#bottomLabels span');
+  tops.forEach(s => s.classList.remove('highlight-start'));
+  bots.forEach(s => { s.classList.remove('highlight-end'); s.textContent = '?'; });
+
+  drawLadder([]);
+}
+
+function addHistory(name, result, color) {
+  history.push({ name, result, color });
+  const section = document.getElementById('historySection');
+  section.style.display = 'block';
+  const list = document.getElementById('historyList');
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  item.innerHTML = `<span class="name" style="color:${color}">${name}</span><span class="arrow">&#10132;</span><span class="result">${result}</span>`;
+  list.appendChild(item);
+}
+
+initGame();
+</script>
+</body>
+</html>
