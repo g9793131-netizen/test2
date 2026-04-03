@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사다리 게임</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #e94560;
+  }
+  .settings {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .settings label { font-size: 0.95rem; }
+  .settings input {
+    width: 50px;
+    padding: 5px 8px;
+    border: 1px solid #444;
+    border-radius: 6px;
+    background: #16213e;
+    color: #eee;
+    text-align: center;
+    font-size: 1rem;
+  }
+  button {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
+  }
+  button:active { transform: scale(0.96); }
+  .btn-primary { background: #e94560; color: #fff; }
+  .btn-primary:hover { background: #c73652; }
+  .btn-secondary { background: #0f3460; color: #fff; }
+  .btn-secondary:hover { background: #1a4a7a; }
+
+  .name-inputs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .name-inputs input {
+    width: 90px;
+    padding: 6px 8px;
+    border: 2px solid #444;
+    border-radius: 8px;
+    background: #16213e;
+    color: #eee;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+  .name-inputs input:focus {
+    outline: none;
+    border-color: #e94560;
+  }
+
+  .game-area {
+    position: relative;
+    margin: 10px auto;
+  }
+  canvas {
+    display: block;
+    border-radius: 12px;
+    background: #16213e;
+  }
+
+  .top-labels, .bottom-labels {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    padding: 0 40px;
+  }
+  .top-labels span, .bottom-labels span {
+    width: 80px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 6px 4px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    user-select: none;
+  }
+  .top-labels span {
+    background: #0f3460;
+    color: #fff;
+  }
+  .top-labels span:hover {
+    background: #e94560;
+    transform: translateY(-2px);
+  }
+  .bottom-labels span {
+    background: #533483;
+    color: #fff;
+    cursor: default;
+  }
+  .result-banner {
+    margin-top: 15px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #ffd700;
+    min-height: 30px;
+    text-align: center;
+  }
+  .highlight-start { background: #e94560 !important; }
+  .highlight-end { background: #e94560 !important; }
+</style>
+</head>
+<body>
+
+<h1>🪜 사다리 게임</h1>
+
+<div class="settings">
+  <label>참가자 수: <input id="numPlayers" type="number" min="2" max="8" value="4"></label>
+  <button class="btn-primary" onclick="initGame()">게임 생성</button>
+  <button class="btn-secondary" onclick="revealAll()">전체 공개</button>
+</div>
+
+<div id="playerNames" class="name-inputs"></div>
+<div id="resultNames" class="name-inputs"></div>
+
+<div class="game-area">
+  <div id="topLabels" class="top-labels"></div>
+  <canvas id="canvas"></canvas>
+  <div id="bottomLabels" class="bottom-labels"></div>
+</div>
+
+<div id="resultBanner" class="result-banner"></div>
+
+<script>
+const COLORS = ['#e94560','#0f3460','#ffd700','#00b894','#fd79a8','#6c5ce7','#00cec9','#ff7675'];
+
+let numPlayers = 4;
+let ladderData = [];  // [col][row] = true/false for horizontal bridge to the right
+let canvasW, canvasH;
+let colGap, rowGap;
+const ROWS = 10;
+const PAD_X = 60;
+const PAD_Y = 20;
+const CANVAS_H = 420;
+let animating = false;
+
+function initGame() {
+  numPlayers = Math.max(2, Math.min(8, parseInt(document.getElementById('numPlayers').value) || 4));
+  document.getElementById('numPlayers').value = numPlayers;
+  document.getElementById('resultBanner').textContent = '';
+  animating = false;
+
+  // Build name inputs
+  const pDiv = document.getElementById('playerNames');
+  const rDiv = document.getElementById('resultNames');
+  pDiv.innerHTML = '<label style="width:100%;text-align:center;font-size:0.85rem;color:#aaa;">▼ 참가자 이름</label>';
+  rDiv.innerHTML = '<label style="width:100%;text-align:center;font-size:0.85rem;color:#aaa;">▼ 결과 (당첨 등)</label>';
+  for (let i = 0; i < numPlayers; i++) {
+    const pi = document.createElement('input');
+    pi.placeholder = `참가자${i+1}`;
+    pi.id = `p${i}`;
+    pi.value = `참가자${i+1}`;
+    pDiv.appendChild(pi);
+
+    const ri = document.createElement('input');
+    ri.placeholder = `결과${i+1}`;
+    ri.id = `r${i}`;
+    ri.value = i === 0 ? '당첨!' : '';
+    rDiv.appendChild(ri);
+  }
+
+  generateLadder();
+  drawLadder();
+  buildLabels();
+}
+
+function generateLadder() {
+  ladderData = [];
+  for (let c = 0; c < numPlayers - 1; c++) {
+    ladderData[c] = [];
+    for (let r = 0; r < ROWS; r++) {
+      ladderData[c][r] = Math.random() < 0.35;
+    }
+  }
+  // Ensure no two adjacent horizontal bridges on the same row
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 1; c < numPlayers - 1; c++) {
+      if (ladderData[c][r] && ladderData[c-1][r]) {
+        ladderData[c][r] = false;
+      }
+    }
+  }
+  // Ensure at least some bridges
+  for (let c = 0; c < numPlayers - 1; c++) {
+    const has = ladderData[c].some(v => v);
+    if (!has) {
+      ladderData[c][Math.floor(Math.random() * ROWS)] = true;
+    }
+  }
+}
+
+function getMetrics() {
+  canvasW = PAD_X * 2 + (numPlayers - 1) * 100;
+  canvasH = CANVAS_H;
+  colGap = (canvasW - PAD_X * 2) / (numPlayers - 1);
+  rowGap = (canvasH - PAD_Y * 2) / (ROWS + 1);
+}
+
+function colX(c) { return PAD_X + c * colGap; }
+function rowY(r) { return PAD_Y + (r + 1) * rowGap; }
+
+function drawLadder(highlights = []) {
+  getMetrics();
+  const canvas = document.getElementById('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvasW, canvasH);
+
+  // Vertical lines
+  ctx.strokeStyle = '#3a3a5c';
+  ctx.lineWidth = 3;
+  for (let c = 0; c < numPlayers; c++) {
+    ctx.beginPath();
+    ctx.moveTo(colX(c), PAD_Y);
+    ctx.lineTo(colX(c), canvasH - PAD_Y);
+    ctx.stroke();
+  }
+
+  // Horizontal bridges
+  ctx.lineWidth = 3;
+  for (let c = 0; c < numPlayers - 1; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (ladderData[c][r]) {
+        ctx.strokeStyle = '#555580';
+        ctx.beginPath();
+        ctx.moveTo(colX(c), rowY(r));
+        ctx.lineTo(colX(c + 1), rowY(r));
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Draw highlight paths
+  for (const h of highlights) {
+    ctx.strokeStyle = h.color;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    const pts = h.points;
+    if (pts.length > 0) {
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i][0], pts[i][1]);
+      }
+    }
+    ctx.stroke();
+  }
+}
+
+function tracePath(startCol) {
+  const points = [];
+  let col = startCol;
+  points.push([colX(col), PAD_Y]);
+
+  for (let r = 0; r < ROWS; r++) {
+    points.push([colX(col), rowY(r)]);
+    // Check right
+    if (col < numPlayers - 1 && ladderData[col][r]) {
+      col++;
+      points.push([colX(col), rowY(r)]);
+    }
+    // Check left
+    else if (col > 0 && ladderData[col - 1][r]) {
+      col--;
+      points.push([colX(col), rowY(r)]);
+    }
+  }
+  points.push([colX(col), canvasH - PAD_Y]);
+  return { points, endCol: col };
+}
+
+function buildLabels() {
+  const topDiv = document.getElementById('topLabels');
+  const botDiv = document.getElementById('bottomLabels');
+  topDiv.innerHTML = '';
+  botDiv.innerHTML = '';
+  topDiv.style.width = canvasW + 'px';
+  botDiv.style.width = canvasW + 'px';
+  topDiv.style.padding = `0 ${PAD_X - 40}px`;
+  botDiv.style.padding = `0 ${PAD_X - 40}px`;
+
+  for (let i = 0; i < numPlayers; i++) {
+    const ts = document.createElement('span');
+    ts.textContent = document.getElementById(`p${i}`).value || `참가자${i+1}`;
+    ts.onclick = () => animateTrace(i);
+    topDiv.appendChild(ts);
+
+    const bs = document.createElement('span');
+    bs.textContent = '?';
+    bs.id = `bot${i}`;
+    botDiv.appendChild(bs);
+  }
+}
+
+function animateTrace(startCol) {
+  if (animating) return;
+  animating = true;
+  document.getElementById('resultBanner').textContent = '';
+
+  // Reset label highlights
+  const tops = document.querySelectorAll('#topLabels span');
+  const bots = document.querySelectorAll('#bottomLabels span');
+  tops.forEach(s => s.classList.remove('highlight-start'));
+  bots.forEach(s => s.classList.remove('highlight-end'));
+  tops[startCol].classList.add('highlight-start');
+
+  const color = COLORS[startCol % COLORS.length];
+  const { points, endCol } = tracePath(startCol);
+
+  let idx = 1;
+  const partialPoints = [points[0]];
+
+  function step() {
+    if (idx >= points.length) {
+      // Done
+      const resultText = document.getElementById(`r${endCol}`).value;
+      const bs = document.getElementById(`bot${endCol}`);
+      bs.textContent = resultText || `결과${endCol+1}`;
+      bs.classList.add('highlight-end');
+
+      const pName = document.getElementById(`p${startCol}`).value || `참가자${startCol+1}`;
+      document.getElementById('resultBanner').textContent =
+        `${pName} → ${resultText || `결과${endCol+1}`}`;
+      animating = false;
+      return;
+    }
+    partialPoints.push(points[idx]);
+    drawLadder([{ color, points: [...partialPoints] }]);
+    idx++;
+    requestAnimationFrame(step);
+  }
+  step();
+}
+
+function revealAll() {
+  if (animating) return;
+  animating = true;
+  document.getElementById('resultBanner').textContent = '';
+
+  const allPaths = [];
+  for (let i = 0; i < numPlayers; i++) {
+    const { points, endCol } = tracePath(i);
+    allPaths.push({ color: COLORS[i % COLORS.length], points, endCol, startCol: i });
+  }
+
+  let idx = 1;
+  const maxLen = Math.max(...allPaths.map(p => p.points.length));
+
+  function step() {
+    if (idx >= maxLen) {
+      // Show all results
+      const bots = document.querySelectorAll('#bottomLabels span');
+      for (const p of allPaths) {
+        const bs = document.getElementById(`bot${p.endCol}`);
+        const resultText = document.getElementById(`r${p.endCol}`).value;
+        bs.textContent = resultText || `결과${p.endCol+1}`;
+        bs.classList.add('highlight-end');
+      }
+      animating = false;
+      return;
+    }
+    const highlights = allPaths.map(p => ({
+      color: p.color,
+      points: p.points.slice(0, Math.min(idx + 1, p.points.length))
+    }));
+    drawLadder(highlights);
+    idx++;
+    requestAnimationFrame(step);
+  }
+  step();
+}
+
+// Init on load
+initGame();
+</script>
+</body>
+</html>
